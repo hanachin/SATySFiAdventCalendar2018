@@ -1,0 +1,184 @@
+@require: stdjareport
+@require: itemize
+@require: code
+
+document (|
+  author = { Seiei MIYAGI };
+  title = { Herokuでも元気に動く\SATySFi; }
+|) '<
+  +section{はじめに}<
+    +p {
+      これは\SATySFi; Advent Calendar 2018の2日目の記事です。
+      1日目はpuripuri2100さんの\SATySFi;でカスタマイズが容易なクラスファイルを作成した\footnote{https://qiita.com/puripuri2100/items/519e5364297446b7071a}でした。
+      明日はzr_tex8rさんです。
+    }
+    +p {
+      この記事では\SATySFi;をHerokuで元気に動かす方法を紹介します。
+    }
+  >
+  +section{Herokuで元気に動かす方法(忙しい人向け)}<
+    +p {
+      Herokuにはbuildpack\footnote{https://jp.heroku.com/elements/buildpacks}という機能があります。
+      buildpackを使うと標準では用意されていない言語のバイナリパッケージをHeroku上で使うことができます。
+      そう、\SATySFi;もね!
+    }
+    +p {
+      hanachin/heroku-buildpack-SATySFi\footnote{https://github.com/hanachin/heroku-buildpack-SATySFi}を作りました。
+      HerokuのCLIのコマンドから以下のようにbuildpackを追加すると、satysfiコマンドが利用できるようになります。
+      \console(```
+      $ heroku buildpacks:add https://github.com/hanachin/heroku-buildpack-SATySFi.git
+      ```);
+    }
+    +p {
+      実際にHerokuで動いているRailsアプリケーションで元気に\SATySFi;が動いている様子を以下から確認できます。
+
+      \listing {
+        * demo: https://satysfi-rails-demo.herokuapp.com/fizzbuzz.pdf
+        * code: https://github.com/hanachin/satysfi-rails-demo
+      }
+
+      Ruby on Railsに\SATySFi;を組み込む方法についてはRailsのviewでPDFを書くSATySFi-rails gemの使い方
+      \footnote{https://qiita.com/hanachin_/items/f8424d766d3020d32acf}
+      で詳しく書いたのでそちらをご覧ください。
+    }
+  +section{Herokuで元気に動かす方法、buildpackの作り方}<
+    +p {
+      ソースコードはhanachin/heroku-buildpack-SATySFi\footnote{https://github.com/hanachin/heroku-buildpack-SATySFi}にあります。
+      Buildpack API\footnote{https://devcenter.heroku.com/articles/buildpack-api}のドキュメントを読みながら実装しました。
+      実装する必要があるのは3つのシェルスクリプトです。
+      \listing {
+        * bin/detect: buildpackの対象かどうか検知する
+        * bin/compile: buildpackを適用する(ここで\SATySFi;をインストール)
+        * bin/release: ビルドパックがはじめてデプロイされたとき実行される（今回は空）
+      }
+    }
+
+    +p {
+      \code(`bin/detect`);は以下のようにサポート対象の環境でない場合は異常終了します。
+    }
+    +console(```
+    #!/bin/sh
+    set -e
+    if [ $STACK != "heroku-18" ]; then
+      echo $STACK is not supported.
+      exit 1
+    fi
+
+    echo "SATySFi v0.0.3"
+    ```);
+
+    +p {
+      \code(`bin/compile`);では\SATySFi;を\code(`vendor/satysfi`);以下に設置しています。
+      vendor/satysfi以下にパスを通すためのシェルスクリプトも設置しています。
+    }
+    +console(```
+    #!/bin/sh
+
+    set -e
+
+    BUILD_DIR=$1
+    BIN_DIR=$(cd $(dirname $0); pwd)
+    BUILDPACK_DIR=$(dirname $BIN_DIR)
+    SATYSFI_DIR="$BUILDPACK_DIR/SATySFi-0.0.3"
+
+    echo "-----> Installing SATySFi v0.0.3"
+
+    mkdir -p $BUILD_DIR/vendor
+    cp -r $SATYSFI_DIR $BUILD_DIR/vendor/satysfi
+    mkdir -p $BUILD_DIR/.profile.d
+    cp $BUILDPACK_DIR/.profile.d/* $BUILD_DIR/.profile.d
+    ```);
+
+    +p {
+      \code(`.profile.d/heroku-buildpack-SATySFi.sh`);では\SATySFi;にパスを通しています。
+      \SATySFi;のインストール先が\code(`/usr/local`);ではないため\code(`~/.satysfi`);へsymlinkを張っています。
+    }
+    +console(```
+    PATH=$PATH:$HOME/vendor/satysfi/bin
+
+    if [ ! -d $HOME/.satysfi ]; then
+      ln -s $HOME/vendor/satysfi/share/satysfi $HOME/.satysfi
+    fi
+    ```);
+
+    +p {
+      \code(`bin/release`);では特に何も行っていません。
+    }
+    +console(```
+    #!/bin/sh
+
+    echo "--- {}"
+    ```);
+    >
+    +subsection{Herokuで元気に動く\SATySFi;バイナリのビルド} <
+      +p {
+        Herokuの動作環境はStack\footnote{https://devcenter.heroku.com/articles/stack}と呼ばれています。
+        Herokuで動作させるバイナリをビルドする場合、HerokuのStackのDockerイメージ\footnote{https://devcenter.heroku.com/articles/heroku-18-stack\#heroku-18-docker-image}上でビルドするといいです。
+        以下のような手順で\SATySFi;をビルドします。\code(`opam install`);の際に\code(`--destdir`);を指定するとインストール先を変更できます。
+      }
+      +console(```
+      % docker run --rm -it heroku/heroku:18
+      # apt update
+      # apt install -y build-essential autoconf git m4 unzip wget ca-cacert ca-certificates ruby --no-install-recommends
+      # apt clean
+      # sh <(curl -sL https://raw.githubusercontent.com/ocaml/opam/master/shell/install.sh)
+      # opam init --comp 4.06.0 --disable-sandboxing
+      # eval $(opam env)
+      # opam repository add satysfi-external https://github.com/gfngfn/satysfi-external-repo.git
+      # opam update
+      # git clone https://github.com/gfngfn/SATySFi.git
+      # cd SATySFi
+      # opam pin add satysfi .
+      # opam install satysfi --destdir=/root/SATySFi
+      # cd /root
+      # tar czf satysfi.tar.gz -C /root/SATySFi .
+      ```);
+      +p {
+        ビルドしたパッケージは\code(`docker cp`);すると取り出せます。
+      }
+      +console(```
+      % docker ps
+      CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS               NAMES
+      94a095df8c4a        heroku/heroku:18    "/bin/bash"         About an hour ago   Up About an hour                        tender_benz
+      % docker cp 94a095df8c4a:/root/satysfi.tar.gz satysfi.tar.gz
+      ```);
+    >
+  >
+  +section{Herokuで元気に動かすにあたって困ったところ}<
+    +subsection{フォントのライセンス}<
+      +p {
+        利用者の手間が増えるのを防ぐためheroku-buildpack-SATySFiではフォントも同梱しました。
+        バイナリパッケージとして\SATySFi;を再配布する際、\SATySFi;自体はLGPL 3.0に従って再配布されます。
+        しかし、\SATySFi;をビルドするとき\code(`share/satysfi/dist/fonts`);以下にダウンロードされたフォントに関してはLGPLではなく、それぞれのフォントのライセンスが適用されます。
+        なので、同梱するフォントのライセンスを調べて、ライセンスファイルを別途設置する必要があるのがそれなりに手間でした。
+      }
+    >
+    +subsection{\SATySFi;のバイナリファイルどこに置く}<
+      +p {
+        Gitリポジトリ内に入れて履歴に残すと変更があるたびに重くなりそうなので、リポジトリの中に直接は入れたくなかったです。
+        しかし他にバイナリファイル置いておける適当な場所を考えつかなかったので割り切ってGitリポジトリに含めています。
+        GitHubだとGit LFS\footnote{https://git-lfs.github.com/}が使えますが、Herokuは対応していないようです。
+        たぶんbuildpackってforce pushしても利用者は困らないはず。\footnote{buildpackをcloneしている開発者が私の他にいたらrefが変わってこまるぐらい}
+      }
+    >
+    +subsection{\SATySFi;のパッケージへのパス}<
+      +p {
+        Herokuでビルドパックを書いている際に\code(`/usr/local`);以下に直接コピーしようとしたんですが以下のようなエラーが出てしまいました。
+        \console(```
+        cp: cannot create regular file '/usr/local/bin/satysfi': Read-only file system
+        ```);
+        仕方がないので別のディレクトリにパッケージのファイルを設置しました。
+        そのままだと読み込まれないのでprofile.dの中で\code(`\$HOME/.satysfi`);が存在しなければsymlinkを張るようなスクリプトを実行しています。
+      }
+    >
+  >
+
+  +section{まとめ}<
+    +p {
+      \SATySFi;をHerokuで元気に動かす方法を紹介しました。
+      Herokuにはかんたんにウェブアプリケーションをデプロイできます。
+      WebアプリケーションからのPDF出力の選択肢に\SATySFi;を加えてみてはいかがでしょうか!
+      では。
+    }
+  >
+>
