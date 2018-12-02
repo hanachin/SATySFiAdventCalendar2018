@@ -1,0 +1,437 @@
+@require: stdjabook
+@require: itemize
+@require: code
+
+document (|
+  author = { Seiei MIYAGI };
+  show-title = true;
+  show-toc = true;
+  title = { Regexp正規表現(しなさい) }
+|) '<
+  +section{はじめに}<
+    +p {
+      これは\SATySFi; Advent Calendar 2018の7日目の記事です。
+      6日目はyouzさんの数式を生成する\footnote{TODO リンクをはる}でした。
+      明日はgfngfnさんです。
+    }
+    +p {
+      この記事では\SATySFi;で正規表現する話をします。
+    }
+  >
+  +section{\SATySFi;で正規表現を使う(忙しい人向け)} <
+    +p {
+      以下のように\code(`~/.satysfi/dist/packages/hanachin`);以下に\SATySFi; examples\footnote{https://github.com/hanachin/satysfi-examples}をインストールします。
+    }
+    +console(```
+    $ mkdir -p ~/.satysfi/dist/packages
+    $ git clone https://github.com/hanachin/satysfi-examples.git ~/.satysfi/dist/packages/hanachin
+    ```);
+    +p {
+      \code(`.saty`);の中で以下のように\code(`hanachin/regexp`);を読み込みます。
+    }
+    +code(```
+    @require: hanachin/regexp
+    ```);
+    +p {
+      \code(`Regexp.from`);に正規表現を文字列として渡すと、その正規表現にマッチする函数が手に入ります。
+      函数に文字列を渡すと正規表現とマッチした結果を\code(`((int * string) list) option`);で返します。
+      例が以下です。
+    }
+    +code(```
+    let-inline \example =
+      let regexp = Regexp.from `(x|y)+.*` in
+      let result =
+        match (regexp `xxxxyyyyyyaaa`) with
+        | Some(assoc) ->
+          assoc
+          |> List.map (fun (pos, s) -> (arabic pos) ^ `:` ^ s)
+          |> List.fold-left (fun acc s -> acc ^ s ^ `;`) ` `
+        | None -> `none`
+      in
+      (embed-string result)
+    in
+    % 略
+    +p { \example; }
+    ```);
+    +p { この場合以下のような結果が表示されます。 }
+    +console(```
+    0:xxxxyyyyyyaaa;1:y;
+    ```);
+    +p {
+      正規表現の実装のソースコードについては
+      hanachin/satysfi-examplesの\code(`regexp.satyh`);\footnote{https://github.com/hanachin/satysfi-examples/blob/master/regexp.satyh}を参照してください。
+      使用例はhanachin/satysfi-examplesの\code(`regexp.saty`);\footnote{https://github.com/hanachin/satysfi-examples/blob/master/regexp.saty}に置いてあります。
+    }
+  >
+  +section{モチベーション}<
+    +subsection{やりたいこと} <
+      +p {
+        \SATySFi;でソースコードのシンタックスハイライトがしたいのでした。
+      }
+    >
+    +subsection{課題}<
+      +p {
+        しかし、現状の\SATySFi;だけではシンタックスハイライトの実装に十分な正規表現の機能がたりなさそうでした。
+        \SATySFi;で使える正規表現の機能については後述します。
+      }
+    >
+    +subsection{その場しのぎの解決方法}<
+      +p {
+        そのため前処理としてRubyを組み合わせて「SATySFi で Ruby のソースコードをシンタックス ハイライトする」\footnote{https://qiita.com/hanachin_/items/bebb875f36e7ac3e7368}のように、シンタックスハイライトを実装しました。
+      }
+    >
+    +subsection{まっとうな解決方法}<
+      +p {
+        \SATySFi;だけでシンタックスハイライトできるようにしたい。
+        シンタックスハイライトに必要な正規表現の機能を実装しよう！
+      }
+    >
+  >
+  +section{\SATySFi;で使える正規表現}<
+    +p {
+      \SATySFi;でどのような正規表現が使えるのかは\SATySFi;でプリミティブを実装しているVMのインストラクションをgrepすればわかります。
+      VMのインストラクションは\code(`src/frontend/bytecomp/vminstdef.yaml`);で定義されています。
+      regexpなどでgrepするとそれっぽいインストラクションが見つかります。
+      抜粋すると\SATySFi;で正規表現を扱うプリミティブは以下です。\footnote{これらのソースコードのライセンスはLGPL-3.0です}
+    }
+    +code(```
+    ---
+    inst: PrimitiveRegExpOfString
+    is-pdf-mode-primitive: yes
+    is-text-mode-primitive: yes
+    name: "regexp-of-string"
+    type: |
+      ~% (tS @-> tRE)
+
+    params:
+    - str : string
+    code: |
+      let regexp =
+        try Str.regexp str with
+        | Failure(msg) -> report_dynamic_error ("regexp-of-string: " ^ msg)
+      in
+        RegExpConstant(regexp)
+
+    ---
+    inst: PrimitiveStringMatch
+    is-pdf-mode-primitive: yes
+    is-text-mode-primitive: yes
+    name: "string-match"
+    type: |
+      ~% (tRE @-> tS @-> tB)
+
+    params:
+    - pat : regexp
+    - s : string
+    code: |
+      BooleanConstant(Str.string_match pat s 0)
+
+    ---
+    inst: PrimitiveSplitOnRegExp
+    is-pdf-mode-primitive: yes
+    is-text-mode-primitive: yes
+    name: "split-on-regexp"
+    type: |
+      ~% (tRE @-> tS @-> (tL (tPROD [tI; tS])))
+
+    params:
+    - sep : regexp
+    - str : string
+    code: |
+      let slst = Str.split sep str in
+      let pairlst = slst |> List.map chop_space_indent in
+        (pairlst |> make_list (fun (i, s) ->
+          TupleCons(IntegerConstant(i), TupleCons(StringConstant(s), EndOfTuple))))
+    ```);
+
+    +p {
+   　　それぞれのプリミティブを簡単に紹介すると以下のような機能を持っています。
+
+      \listing {
+        * regexp-of-string: 文字列を正規表現にします。
+        * string-match: 文字列が正規表現にマッチするかしないかをBooleanで返します
+        * split-on-regexp: 正規表現にマッチした部分を消して分割します
+      }
+      これだけです。
+      例えば以下のような機能は実装されていません。
+      \listing {
+        * 正規表現にマッチした文字列を取る
+        * 正規表現にマッチした位置を取る
+        * 正規表現中でキャプチャした部分文字列を取る
+      }
+      これらの機能がほしい場合どうすればいいのでしょう？
+      \SATySFi;の言語実装に手を加えOCamlの正規表現のバインディングを\SATySFi;のプリミティブに追加すれば実装できそうですね。
+    }
+    +p {
+      しかし\SATySFi;は強力なプログラミング言語なので、\SATySFi;の言語実装に手を加えずとも、\SATySFi;で正規表現を実装すればプリミティブを増やさずに機能を増やせるのでは？
+
+      と思ったので\SATySFi;で正規表現を実装しました。
+    }
+  >
+  +section{\SATySFi;正規表現実装法}<
+    +subsection{参考にした実装}<
+      +p {
+        正規表現の実装にあたってはRegular Expression Matching: the Virtual Machine Approach\footnote{https://swtch.com/~rsc/regexp/regexp2.html}とre1\footnote{https://code.google.com/archive/p/re1/source}を参考に実装を進めました。
+      }
+    >
+    +subsection{正規表現を文字列として渡すと、その正規表現にマッチする函数を返す函数}<
+      +p {
+        処理の流れは以下のような感じです。字句解析して構文解析してVM命令列にコンパイルし、文字列を受け取ってVM命令列を実行する函数を返す。かんたんだーーー！！！！！　
+      }
+      +code(```
+      let from r =
+        let tokens = lex r in
+        let root = parse tokens in
+        let bytecodes = compile root in
+        (fun s -> (
+          (exec bytecodes s)
+        ))
+      ```);
+      +p {
+        この後、それぞれの処理の実装方法を少しだけ解説します。解説はかいつまんだものになるので、実際の実装に興味がある方はぜひソースコードを読んでください。
+      }
+    >
+    +subsection{lex}<
+      +p {
+        以下のような形でlexerを定義しました。エスケープシーケンスには対応していません。
+      }
+      +code(```
+      type token =
+        | T-alt
+        | T-char of string
+        | T-dot
+        | T-lparen
+        | T-rparen
+        | T-star
+        | T-plus
+        | T-question
+      % 略
+      let lex s =
+        let-rec inner
+          | [] = []
+          | (`|` :: cs) = T-alt :: inner cs
+          | (`(` :: cs) = T-lparen :: inner cs
+          | (`)` :: cs) = T-rparen :: inner cs
+          | (`.` :: cs) = T-dot :: inner cs
+          | (`*` :: cs) = T-star :: inner cs
+          | (`+` :: cs) = T-plus :: inner cs
+          | (`?` :: cs) = T-question :: inner cs
+          | (c :: cs) = T-char(c) :: inner cs
+        in
+        inner (split-into-chars s)
+      ```);
+      +p {
+        やっていることは単純で正規表現上で特殊な意味を持つ記号はそれぞれの記号に対応した\code(`token`);に変換しています。
+        その他の文字については\code(`T-char`);で包んでいます。
+      }
+      +p {
+        実際の結果を見たほうが分かりやすいと思うので\code(`(x|y)+.*`);をlexした結果を載せます。
+      }
+      +code(```
+      [ T-lparen; T-char(`x`); T-alt; T-char(`y`); T-rparen; T-plus; T-dot; T-star ]
+      ```);
+    >
+    +subsection{parse}<
+      +p {
+        以下のようなノードを持ったASTを組み立てます。\code(`-ng-`);はnon greedyの略です。
+      }
+
+      +code(```
+      type node =
+        | N-alt of node * node
+        | N-cat of node * node
+        | N-dot
+        | N-empty
+        | N-lit of string
+        | N-ng-star of node
+        | N-paren of node
+        | N-parse-failed
+        | N-star of node
+        | N-plus of node
+        | N-question of node
+      ```);
+
+      +p {
+        実際に組み立てている部分のソースコードを載せるとかなり長くなってしまうので、ソースコードの雰囲気を載せます。
+      }
+
+      +code(```
+      let parse tokens =
+        let choice fns =
+          % 複数の小さなパーサーfnsを順に試行するパーサーを返す
+        in
+
+        let many fn =
+          % パーサーfnに繰り返しマッチするパーサーを返す
+        in
+
+        let seq fns =
+          % 複数の小さなパーサーfnsを取ってすべてのパーサーにマッチした場合に成功するパーサーを返す
+        in
+
+        let map token node =
+          % T-dotをN-anyなど単純な置換を定義するユーティリティ
+        in
+        let quantifierize fn =
+          % *, +, ?に対応
+        in
+
+        % 各パーサー内で参照し合うことがある
+        % こういった場合letだと後ろの方の参照が取れない
+        % なのでlet-mutableで定義して後から!で参照する
+        let default = (fun tn tokens -> None) in
+        let-mutable alt <- default in
+        let-mutable alt2 <- default in
+        let-mutable alt-bar <- default in
+        let-mutable cat <- default in
+        let-mutable char <- default in
+        let-mutable dot <- default in
+        let-mutable empty <- fun tn tokens -> Some(tn, N-empty) in
+        let-mutable lparen <- default in
+        let-mutable rparen <- default in
+        let-mutable paren <- default in
+        let-mutable single <- default in
+
+        % 実際の部分パーサーの定義、色々と部分パーサーを組み合わせたりする
+        let () = alt <- choice [alt2; cat; empty] in
+
+        % 略
+
+        % パースしてみる
+        match !alt 0 tokens with
+        | Some(tn, root) -> (
+          % すべてのトークンを消化しきったらパース成功
+          if tn == (List.length tokens) then
+            N-cat(N-ng-star(N-dot), N-paren(root))
+          % 消化しきれなかったらパース失敗、お疲れ様でした
+          else
+            N-parse-failed
+        )
+      ```);
+
+      +p {
+        \code(`(x|y)+.*`);をパースすると以下のような結果が返ってきます。
+      }
+
+      +code(```
+      N-cat(N-ng-star(N-dot),N-paren(N-cat(N-plus(N-paren(N-alt(N-lit(x),N-lit(y)))),N-star(N-dot))))
+      ```);
+      +p {
+        パーサーを実装する際に困ったことといえば左再帰除去を忘れて実装していて無限ループしてはまりました。
+      }
+      +p {
+        正規表現のパースに失敗した場合、パーサーから\code(`N-parse-failed`);が返ってきます。
+        後続の\code(`compile`);では\code(`N-parse-failed`);にマッチするような処理を書いていません。なので\SATySFi;の実行時に以下のようなエラーで落ちます。
+      }
+      +console(```
+      evaluating texts ...p
+      ! [Error during Evaluation] no matches ("regexp.satyh", line 230, character 6 to line 293, character 9)
+      ```);
+    >
+    +subsection{compile}<
+      +p {
+        \code(`parse`);した結果のASTを受けとり、VMの命令に変換します。以下のような命令があります。
+      }
+      +code(```
+      type bytecode =
+        | O-any
+        | O-char of string
+        | O-jump of int
+        | O-match
+        | O-not-match
+        | O-split of int * int
+        | O-subend of int
+        | O-substart of int
+      ```);
+      +p {
+        それぞれの命令は以下のような操作に対応しています
+
+        \listing {
+          * \code(`O-any`); : どんな文字にもマッチします
+          * \code(`O-char(c)`); : 文字cにマッチします
+          * \code(`O-jump`); : ジャンプ先の相対アドレスにPCを移動します
+          * \code(`O-match`); : 正規表現にマッチした場合です、実行が止まります
+          * \code(`not-match`); : 正規表現にマッチしなかった場合です、実行が止まります
+          * \code(`O-split`); : 命令の相対アドレス2つを取り、分岐して実行します
+          * \code(`O-subend`); : キャプチャを終了する際に呼ばれ現在走査中の文字の位置を記録します
+          * \code(`O-substart`); : キャプチャをはじめる際に呼ばれ現在走査中の文字の位置を記録します
+        }
+      }
+      +p {
+        ここでも細かい実装については省略しソースコードの雰囲気を掲載します。
+      }
+      +code(```
+      let compile ast =
+        let-mutable nparen <- 0 in
+        let-rec inner t bytecodes =
+          match t with
+          % 略
+          % 葉をコンパイルしてVM命令列に追加　
+          | N-cat(l, r) -> List.concat [bytecodes; (inner l []); (inner r [])]
+          % 略
+          % 文字にマッチするVM命令列を追加
+          | N-lit(c) -> List.append bytecodes [O-char(c)]
+          % 略
+      in
+      % VM命令すべて実行しきったらマッチ成功、ということで最後にマッチ命令を足す
+      List.append (inner ast []) [O-match]
+      ```);
+
+      +p {
+        例として\code(`(x|y)+.*`);をVMの命令にコンパイルした結果を載せます。
+      }
+
+      +code(```
+      [ O-split(3,1); O-any; O-jump(-2); O-substart(0); O-jump(2); O-split(1,8); O-substart(1); O-split(1,3); O-char(x); O-jump(2); O-char(y); O-subend(1); O-jump(-7); O-split(1,3); O-any; O-jump(-2); O-subend(0); O-match ]
+      ```);
+    >
+    +subsection{exec}<
+      +p {
+        正規表現をコンパイルしたVMの命令列と、マッチする対象の文字列をとります。
+        命令を1つずつ実行しながら、対象の文字列を走査していきます。
+        以下、実装の雰囲気だけ。
+      }
+      +code(```
+      let exec bytecodes str =
+        % bytecodes: VM命令列
+        % bn: 現在実行中のVMの命令、PC
+        % cs: マッチさせている文字列を文字ごとに分割した配列
+        % cn: 文字列の走査中の位置
+        % assoc: キャプチャされた文字をためておくリスト
+        let-rec inner bytecodes bn cs cn assoc =
+          let b = Option.from O-not-match (List.nth bn bytecodes) in
+          match b with
+          % 略
+          | O-char(c) -> (
+              % 走査中の文字が尽きていないか
+              match (List.nth cn cs) with
+              | Some(c2) ->
+                % 文字が同じ場合、PCを次へ移し、1文字消費して次へ進む
+                if (string-same c c2) then (inner bytecodes (bn + 1) cs (cn + 1) assoc)
+                else None
+              | None -> None
+          % 略
+          % マッチした場合Someで包んで結果を返す
+          | O-match -> Some((substring-assoc str assoc))
+          % マッチしなかった場合Noneを返す
+          | O-not-match -> None
+          % 略
+        in
+        inner bytecodes 0 (split-into-chars str) 0 []
+
+      ```);
+      +p {
+        詳しくは\code(`regexp.satyh`);\footnote{https://github.com/hanachin/satysfi-examples/blob/master/regexp.satyh}を読んでみてください。
+      }
+    >
+  >
+  +section{まとめ}<
+    +p {
+      \SATySFi;正規表現実装法\footnote{五七五}を書きました。
+      \SATySFi;の実装に手を加えプリミティブを増やさずとも表現力の高い\SATySFi;言語ならべんり機能を追加できる一例を示せたと思います。
+      今使っている言語より\SATySFi;に機能が足りない?
+      少なくなったら足すだけやから。
+      では。
+    }
+  >
+>
