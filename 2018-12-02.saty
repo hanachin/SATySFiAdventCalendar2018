@@ -158,7 +158,7 @@ document (|
         Gitリポジトリ内に入れて履歴に残すと変更があるたびに重くなりそうなので、リポジトリの中に直接は入れたくなかったです。
         しかし他にバイナリファイル置いておける適当な場所を考えつかなかったので割り切ってGitリポジトリに含めています。
         GitHubだとGit LFS\footnote{https://git-lfs.github.com/}が使えますが、Herokuは対応していないようです。
-        たぶんbuildpackってforce pushしても利用者は困らないはず。\footnote{buildpackをcloneしている開発者が私の他にいたらrefが変わってこまるぐらい}
+        バイナリをGitの履歴から消し去るためにforce pushしても利用者は困らないはずなので重たくなったらforce pushします。\footnote{buildpackをcloneしている開発者が私の他にいたらrefが変わってこまるぐらい}
       }
     >
     +subsection{\SATySFi;のパッケージへのパス}<
@@ -177,7 +177,7 @@ document (|
     +p {
       \SATySFi;をHerokuで元気に動かす方法を紹介しました。
       Herokuにはかんたんにウェブアプリケーションをデプロイできます。
-      WebアプリケーションからのPDF出力の選択肢に\SATySFi;を加えてみてはいかがでしょうか!
+      WebアプリケーションからPDF出力する際の選択肢に\SATySFi;を加えてみてはいかがでしょうか!
       では。
     }
   >
