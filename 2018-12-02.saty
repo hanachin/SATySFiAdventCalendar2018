@@ -168,7 +168,7 @@ document (|
         cp: cannot create regular file '/usr/local/bin/satysfi': Read-only file system
         ```);
         仕方がないので別のディレクトリにパッケージのファイルを設置しました。
-        そのままだと読み込まれないのでprofile.dの中で\code(`\$HOME/.satysfi`);が存在しなければsymlinkを張るようなスクリプトを実行しています。
+        そのままだと読み込まれないのでprofile.dの中で\code(`$HOME/.satysfi`);が存在しなければsymlinkを張るようなスクリプトを実行しています。
       }
     >
   >
