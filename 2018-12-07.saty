@@ -10,8 +10,8 @@ document (|
 |) '<
   +section{はじめに}<
     +p {
-      これは\SATySFi; Advent Calendar 2018の7日目の記事です。
-      6日目はyouzさんの数式を生成する\footnote{TODO リンクをはる}でした。
+      これは\href(`https://adventar.org/calendars/3418`){「\SATySFi; Advent Calendar 2018」}の7日目の記事です。
+      6日目はyouzさんの\href(`http://youz.hatenablog.com/entry/2018/12/06/000000`){「SATySFiで数式を生成する ～アッカーマン関数編～」}でした。
       明日はgfngfnさんです。
     }
     +p {
@@ -20,7 +20,7 @@ document (|
   >
   +section{\SATySFi;で正規表現を使う(忙しい人向け)} <
     +p {
-      以下のように\code(`~/.satysfi/dist/packages/hanachin`);以下に\SATySFi; examples\footnote{https://github.com/hanachin/satysfi-examples}をインストールします。
+      以下のように\code(`~/.satysfi/dist/packages/hanachin`);以下に\href(`https://github.com/hanachin/satysfi-examples`){「\SATySFi; examples」}をインストールします。
     }
     +console(```
     $ mkdir -p ~/.satysfi/dist/packages
@@ -59,8 +59,8 @@ document (|
     ```);
     +p {
       正規表現の実装のソースコードについては
-      hanachin/satysfi-examplesの\code(`regexp.satyh`);\footnote{https://github.com/hanachin/satysfi-examples/blob/master/regexp.satyh}を参照してください。
-      使用例はhanachin/satysfi-examplesの\code(`regexp.saty`);\footnote{https://github.com/hanachin/satysfi-examples/blob/master/regexp.saty}に置いてあります。
+      hanachin/satysfi-examplesの\href(`https://github.com/hanachin/satysfi-examples/blob/master/regexp.satyh`){「\code(`regexp.satyh`);」}を参照してください。
+      使用例はhanachin/satysfi-examplesの\href(`https://github.com/hanachin/satysfi-examples/blob/master/regexp.saty`){「\code(`regexp.saty`);」}に置いてあります。
     }
   >
   +section{モチベーション}<
@@ -77,7 +77,7 @@ document (|
     >
     +subsection{その場しのぎの解決方法}<
       +p {
-        そのため前処理としてRubyを組み合わせて「SATySFi で Ruby のソースコードをシンタックス ハイライトする」\footnote{https://qiita.com/hanachin_/items/bebb875f36e7ac3e7368}のように、シンタックスハイライトを実装しました。
+        そのため前処理としてRubyを組み合わせて\href(`https://qiita.com/hanachin_/items/bebb875f36e7ac3e7368`){「SATySFi で Ruby のソースコードをシンタックス ハイライトする」}のように、シンタックスハイライトを実装しました。
       }
     >
     +subsection{まっとうな解決方法}<
@@ -171,7 +171,7 @@ document (|
   +section{\SATySFi;正規表現実装法}<
     +subsection{参考にした実装}<
       +p {
-        正規表現の実装にあたってはRegular Expression Matching: the Virtual Machine Approach\footnote{https://swtch.com/~rsc/regexp/regexp2.html}とre1\footnote{https://code.google.com/archive/p/re1/source}を参考に実装を進めました。
+        正規表現の実装にあたっては\href(`https://swtch.com/~rsc/regexp/regexp2.html`){「Regular Expression Matching: the Virtual Machine Approach」}と\href(`https://code.google.com/archive/p/re1/source`){「re1」}を参考に実装を進めました。
       }
     >
     +subsection{正規表現を文字列として渡すと、その正規表現にマッチする函数を返す函数}<
@@ -421,7 +421,7 @@ document (|
 
       ```);
       +p {
-        詳しくは\code(`regexp.satyh`);\footnote{https://github.com/hanachin/satysfi-examples/blob/master/regexp.satyh}を読んでみてください。
+        詳しくは\href(`https://github.com/hanachin/satysfi-examples/blob/master/regexp.satyh`){「\code(`regexp.satyh`);」}を読んでみてください。
       }
     >
   >
